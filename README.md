@@ -1,5 +1,4 @@
 # sfml-project-template
----
 
 Open the project in Visual Studio 2022.
 The `Main.cpp` have a demo code.
