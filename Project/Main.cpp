@@ -7,19 +7,29 @@
 #include <ImGui/imgui.h>
 #include <ImGui-SFML/imgui-SFML.h>
 
-void propertyEditor(sf::RectangleShape&, sf::Color&);
+void propertyEditor(sf::RectangleShape&, sf::Color&, float&, float&, float&, float&);
 
 int main() {
-	unsigned int width = 800, height = 600;
+	unsigned int width = 800, height = 800;
 	std::string title = "SFML Project Template";
 
-	sf::RenderWindow window(sf::VideoMode(sf::Vector2u{ width, height }), title);
-	sf::Color background(47, 50, 67);
+	sf::RenderWindow window(sf::VideoMode(sf::Vector2u{ width, height }), title, sf::Style::Close);
+	sf::Color background(61, 99, 187);
 
 	sf::RectangleShape player({ 100.f, 100.f });
 	player.setPosition(sf::Vector2f{ static_cast<float>(width / 2), static_cast<float>(height / 2) });
+	float speed = 1000.f;
+	float jumpSpeed = 2500.f;
+	bool isGrounded = false;
+	float repeatDelta = 10.f;
+	float groundDelta = 10.f;
+
 	sf::Vector2f velocity(0.f, 0.f);
-	float speed = 200.f;
+	sf::Vector2f gravity(0.f, 10000.f);
+	float groundThickness{ 100.f };
+	sf::RectangleShape ground({ static_cast<float>(width), groundThickness + groundDelta });
+	ground.setFillColor(sf::Color(86, 205, 100));
+
 
 
 	sf::Clock clock;
@@ -28,9 +38,10 @@ int main() {
 		std::cout << "ImGui Cannot be initialized!\n";
 	}
 
+	ImGui::StyleColorsClassic();
+
 	while (window.isOpen()) {
-		velocity.x = 0;
-		velocity.y = 0;
+		velocity.x = 0.f;
 		while (const auto& event = window.pollEvent()) {
 			ImGui::SFML::ProcessEvent(window, *event);
 			if (event->is<sf::Event::Closed>()) {
@@ -38,30 +49,65 @@ int main() {
 			}
 		}
 
+		sf::Time dt = clock.restart();
+		ImGui::SFML::Update(window, dt);
+		float deltaTime = dt.asSeconds();
+		int fps = static_cast<int>(1.f / deltaTime);
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
 			velocity.x -= speed;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
 			velocity.x = speed;
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
-			velocity.y -= speed;
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-			velocity.y += speed;
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) && isGrounded)
+		{
+			velocity.y -= jumpSpeed;
 		}
 
-		sf::Time dt = clock.restart();
-		ImGui::SFML::Update(window, dt);
-		float deltaTime = dt.asSeconds();
-		int fps = static_cast<int>(1.f / deltaTime);
 
 		player.move(velocity * deltaTime);
 
-		propertyEditor(player, background);
+		const auto& [playerXSize, playerYSize] = player.getSize();
+		const auto& [playerXPosition, playerYPosition] = player.getPosition();
+
+		float groundY = height - groundThickness - groundDelta;
+		ground.setPosition(sf::Vector2f{ 0.f, groundY });
+
+
+		velocity += gravity * deltaTime;
+
+		if (playerXPosition > (width + playerXSize + repeatDelta)) {
+			player.setPosition({ 0.f - playerXSize - repeatDelta, playerYPosition });
+		}
+
+		if (playerXPosition < (0.f - playerXSize - repeatDelta)) {
+			player.setPosition({ width + playerXSize + repeatDelta, playerYPosition });
+		}
+
+		/*if (playerYPosition > (height + playerYSize + repeatDelta)) {
+			player.setPosition({ playerXPosition, 0.f - playerYSize - repeatDelta });
+		}
+
+		if (playerYPosition < (0.f - playerYSize - repeatDelta)) {
+			player.setPosition({ playerXPosition, height + playerYSize + repeatDelta });
+		}*/
+
+		if (playerYPosition + playerYSize >= groundY) {
+			velocity.y = 0.f;
+			isGrounded = true;
+		}
+		else {
+			isGrounded = false;
+		}
+
+
+		propertyEditor(player, background, speed, repeatDelta, velocity.x, velocity.y);
 
 		window.setTitle(title + " FPS: " + std::to_string(fps));
 		window.clear(background);
+		window.draw(ground);
 		window.draw(player);
 		ImGui::SFML::Render(window);
 		window.display();
@@ -71,10 +117,16 @@ int main() {
 	return 0;
 }
 
-void propertyEditor(sf::RectangleShape& player, sf::Color& backgroundColor) {
+void propertyEditor(
+	sf::RectangleShape& player,
+	sf::Color& backgroundColor,
+	float& speed,
+	float& repeatDelta,
+	float& velocityX,
+	float& velocityY) {
 	ImGui::Begin("Property Editor");
 	ImGui::Text("Player Properties");
-	// Player Properties
+
 	sf::Color playerColor = player.getFillColor();
 	sf::Vector2f playerPosition = player.getPosition();
 	sf::Vector2f playerSize = player.getSize();
@@ -90,6 +142,14 @@ void propertyEditor(sf::RectangleShape& player, sf::Color& backgroundColor) {
 		player.setSize(sf::Vector2f(sizeArr[0], sizeArr[1]));
 		playerSize = player.getSize();
 	}
+
+	ImGui::Text("Velocity x:%f, y:%f", velocityX, velocityY);
+
+
+	ImGui::DragFloat("Player Speed", &speed, 1.f, 10.f, 10000.f);
+	ImGui::DragFloat("Repeat Delta", &repeatDelta, 1.f, 1.f, 10.f);
+
+
 
 	float pcol[4] = {
 	playerColor.r / 255.f,
