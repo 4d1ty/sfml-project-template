@@ -13,3 +13,8 @@ All the `.h` and `.cpp` as well as the `.lib` files from these libraries are inc
 The Visual Studio is set to automatically include the header and link the libs automatically.
 You Can rename the `Project` directory however you want, but do it from the Visual Studio so the IDE could pickup the changes.
 Currently only supports Windows.
+
+
+You might want to use the CMake template to make it cross platform
+Here is the official CMake template from the SFML
+> <https://github.com/SFML/cmake-sfml-project>
